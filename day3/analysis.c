@@ -19,9 +19,9 @@ typedef struct{
 #define AMOUNT_OF_GENERATED_VALUES 1000000
 
 void initLittle(little * little_init){ // Starts the Little's structure
-    little_init->events_number;
-    little_init->previous_time;
-    little_init->sum_areas;
+    little_init->events_number = 0;
+    little_init->previous_time = 0.0;
+    little_init->sum_areas = 0.0;
 }
 
 void setParamethers(paramethers * params){ // Reads the input paramethers
@@ -119,7 +119,7 @@ int main(){
             // Little's calculation (E[N])
             e_n.sum_areas += (current_time - e_n.previous_time) * e_n.events_number;
             e_n.events_number--;
-            e_n.previous_time += current_time;
+            e_n.previous_time = current_time;
 
             // Little's calculation (E[W]: departure)
             e_w_departure.sum_areas += (current_time - e_w_departure.previous_time) * e_w_departure.events_number;
@@ -144,7 +144,7 @@ int main(){
 
     double lambda = e_w_arrival.events_number / current_time;
     double little_error = e_n_calc - lambda * e_w_calc; 
-    printf("Little's error: %lF\n", little_error);
+    printf("Little's error: %.20lF\n", little_error);
 
     return 0;
 }
