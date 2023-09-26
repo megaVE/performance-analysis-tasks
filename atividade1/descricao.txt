@@ -1,0 +1,25 @@
+# Trabalho 1
+Obter os seguintes cenários de ocupação, por meio do programa de simulação:
+- Ocupação ≈ 60%
+- Ocupação ≈ 80%
+- Ocupação ≈ 90%
+- Ocupação ≈ 99%
+
+## Parâmetros
+- Tempo de Simulação: 864000 segundos (10 dias)
+- Prazo de Entrega Estimado: 17 de Outubro de 2023
+
+## Respostas Matemáticas
+- Qual é o intervalo entre as chegadas?
+- Qual é o tempo de serviço?
+
+## Gerar Gráfico Analíticos
+- Ocupação Simulada x Ocupação Calculada
+- E[N] x Ocupação Calculada
+- E[W] x Ocupação Calculada
+- Erro de Little x Tempo (em intervalos de 10 segundos)
+
+## Informações Adicionais
+- Medir o Erro de Little a cada 10 segundos (com tempo inicial = 0)
+- E[N] = lambda * E[W]
+- Erro de Little: |E[N] - lambda * E[N]| ≈ 0
