@@ -184,6 +184,10 @@ int main(){
     while(tempo_decorrido < params.tempo_simulacao){
         //min_heap --> tempo_pacote_conexoes_ativas
         //eventos: nova_conexao, conexao_ativa_pacote(heap), tempo_servico, coleta_dados
+        // NOVA CONEXÃO: entra um novo cliente na banda
+        // CONEXÃO ATIVA: tempo em que outro pacote chega e entra na fila
+        // TEMPO SERVIÇO: quando o roteador ficará disponível novamente
+        // COLETA DADOS: coleta das informações de little
         //min(min(min(nova_coxeao, heap.conexao_ativa_pacote),tempo_servico),coleta_dados)
 
         tempo_decorrido = min(tempo_chegada, min(tempo_saida, tempo_analise));
