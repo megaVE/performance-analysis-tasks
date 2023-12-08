@@ -1,0 +1,39 @@
+int main(){
+    // Área de Teste
+    puts("Inicio do teste");
+
+    struct heap * arvore_de_eventos = cria_heap(MAXIMO_ARVORE);
+    printf("Heap Teste: Size = %d, Capacity = %d\n", arvore_de_eventos->size, arvore_de_eventos->capacity);
+
+    struct evento novo_evento = cria_evento('d', 10.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+
+    insere_heap(arvore_de_eventos, novo_evento);
+    printf("Heap Apos Insercao: Size = %d, Capacity = %d\n", arvore_de_eventos->size, arvore_de_eventos->capacity);
+    imprime_heap(arvore_de_eventos);
+
+    novo_evento = cria_evento('a', 11.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+    insere_heap(arvore_de_eventos, novo_evento);
+
+    novo_evento = cria_evento('b', 9.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+    insere_heap(arvore_de_eventos, novo_evento);
+
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Fim de teste");
+    return 0;
+}
