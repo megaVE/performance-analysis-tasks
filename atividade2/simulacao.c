@@ -9,7 +9,7 @@
 #define TEMPO_SERVICO TAMANHO_PACOTE / TAMANHO_BANDA // Tempo de processamento de cada pacote
 #define TEMPO_LIGACAO 120.0         // 2 minutos
 #define TEMPO_INJECAO 20.0          // 20 segundos
-#define MAXIMO_FILA 1000            // Tamanho máximo da fila
+#define MAXIMO_ARVORE 100            // Tamanho máximo suportado pela árvore
 
 // Evento
 
@@ -24,12 +24,12 @@ struct evento{
     double tempo_limite; // Exclusivo de eventos "Tempo de Pacote"
 };
 
-struct evento cria_evento(char tipo, double tempo){
+struct evento cria_evento(char tipo, double tempo, double limite){
     struct evento novo_evento;
 
     novo_evento.tipo_evento = tipo;
     novo_evento.tempo_evento = tempo;
-    novo_evento.tempo_limite = (tipo == 'p') ? 0.0 : 0.0; // Calcular tempo máximo de conexão
+    novo_evento.tempo_limite = limite;
 
     return novo_evento;
 }
@@ -62,6 +62,18 @@ void heapify(struct heap * heap, int index){
     }
 }
 
+void organiza_heap(struct heap * heap, int index){
+    int parent = (index - 1) / 2;
+
+    if(heap->array[parent].tempo_evento > heap->array[index].tempo_evento){
+        struct evento aux = heap->array[parent];
+        heap->array[parent] = heap->array[index];
+        heap->array[index] = aux;
+
+        organiza_heap(heap, parent);
+    }
+}
+
 struct heap * cria_heap(int capacity){
     struct heap * newHeap = (struct heap*)malloc(sizeof(struct heap));
 
@@ -82,24 +94,12 @@ struct heap * cria_heap(int capacity){
     return newHeap;
 }
 
-void organiza_heap(struct heap * heap, int index){
-    int parent = (index - 1) / 2;
-
-    if(heap->array[parent].tempo_evento > heap->array[index].tempo_evento){
-        struct evento aux = heap->array[parent];
-        heap->array[parent] = heap->array[index];
-        heap->array[index] = aux;
-
-        organiza_heap(heap, parent);
-    }
-}
-
 void insere_heap(struct heap * heap, struct evento novo_evento){
-    if(heap->size < heap->capacity){
-        heap->array[heap->size] = novo_evento;
-        organiza_heap(heap, heap->size);
-        heap->size++;
-    }
+    if(heap->size >= heap->capacity) return;
+    
+    heap->array[heap->size] = novo_evento;
+    organiza_heap(heap, heap->size);
+    heap->size++;
 }
 
 struct evento extrai_heap(struct heap * heap){
@@ -117,7 +117,7 @@ struct evento extrai_heap(struct heap * heap){
     return evento_extraido;
 }
 
-void printHeap(struct heap * heap){
+void imprime_heap(struct heap * heap){
     for(int i = 0; i < heap->size; i++)
         printf("[%c]: %lF,  %lF\n", heap->array[i].tipo_evento, heap->array[i].tempo_evento, heap->array[i].tempo_limite);
 }
@@ -167,13 +167,53 @@ double uniforme() {
 	return (1.0 - u);
 }
 
-void inicializa_arvore(struct heap * arvore){
-    cria_heap(arvore);
+void inicia_arvore(struct heap ** arvore){ // Não funciona, fazer no próprio código
+    // arvore = cria_heap(MAXIMO_ARVORE);
     // Primeira Conexão
     // Primeira Coleta
 }
 
 int main(){
+    // Área de Teste
+    puts("Inicio do teste");
+
+    struct heap * arvore_de_eventos = cria_heap(MAXIMO_ARVORE);
+    printf("Heap Teste: Size = %d, Capacity = %d\n", arvore_de_eventos->size, arvore_de_eventos->capacity);
+
+    struct evento novo_evento = cria_evento('d', 10.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+
+    insere_heap(arvore_de_eventos, novo_evento);
+    printf("Heap Apos Insercao: Size = %d, Capacity = %d\n", arvore_de_eventos->size, arvore_de_eventos->capacity);
+    imprime_heap(arvore_de_eventos);
+
+    novo_evento = cria_evento('a', 11.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+    insere_heap(arvore_de_eventos, novo_evento);
+
+    novo_evento = cria_evento('b', 9.0, 0.0);
+    printf("Evento Teste: [%c] %lF - %lF\n", novo_evento.tipo_evento, novo_evento.tempo_evento, novo_evento.tempo_limite);
+    insere_heap(arvore_de_eventos, novo_evento);
+
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Extrair");
+    extrai_heap(arvore_de_eventos);
+    imprime_heap(arvore_de_eventos);
+
+    puts("Fim de teste");
+    return 0;
+}
+
+/*
     // RNG
 
     int semente = time(NULL);
@@ -367,3 +407,4 @@ int main(){
 
     return 0;
 }
+*/
