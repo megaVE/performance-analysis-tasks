@@ -6,14 +6,38 @@
 
 #define TAMANHO_PACOTE 188.0 * 8.0  // 188 Bytes
 #define TAMANHO_BANDA 1000000000.0  // 1 Gigabit / segundo
+#define TEMPO_SERVICO TAMANHO_PACOTE / TAMANHO_BANDA // Tempo de processamento de cada pacote
 #define TEMPO_LIGACAO 120.0         // 2 minutos
 #define TEMPO_INJECAO 20.0          // 20 segundos
 #define MAXIMO_FILA 1000            // Tamanho máximo da fila
 
-/* Heap */
+// Evento
+
+// 'n': Nova Conexão (indica o momento quando o próximo cliente estabelecerá conexão com o roteador)
+// 's': Tempo de Serviço (indica quando o pacote atual será enviado e o roteador ficará novamente disponível)
+// 'p': Tempo de Pacote (indica o momento em que um pacote é enviado para a fila do roteador)
+// 'c': Tempo de Coleta (intervalo contínuo de 10 segundos para a coleta dos dados e cálculo de Little)
+
+struct evento{
+    char tipo_evento;
+    double tempo_evento;
+    double tempo_limite; // Exclusivo de eventos "Tempo de Pacote"
+};
+
+struct evento cria_evento(char tipo, double tempo){
+    struct evento novo_evento;
+
+    novo_evento.tipo_evento = tipo;
+    novo_evento.tempo_evento = tempo;
+    novo_evento.tempo_limite = (tipo == 'p') ? 0.0 : 0.0; // Calcular tempo máximo de conexão
+
+    return novo_evento;
+}
+
+// Heap
 
 struct heap{
-    int *array;
+    struct evento * array;
     int size;
     int capacity;
 };
@@ -26,11 +50,11 @@ void heapify(struct heap * heap, int index){
     if(left >= heap->size || left < 0) left = -1;
     if(right >= heap->size || right < 0) right = -1;
 
-    if(left != -1 && heap->array[left] < heap->array[index]) min = left;
-    if(right != -1 && heap->array[right] < heap->array[min]) min = right;
+    if(left != -1 && heap->array[left].tempo_evento < heap->array[index].tempo_evento) min = left;
+    if(right != -1 && heap->array[right].tempo_evento < heap->array[min].tempo_evento) min = right;
 
     if(min != index){
-        int aux = heap->array[min];
+        struct evento aux = heap->array[min];
         heap->array[min] = heap->array[index];
         heap->array[index] = aux;
 
@@ -38,7 +62,7 @@ void heapify(struct heap * heap, int index){
     }
 }
 
-struct heap * createHeap(int capacity, int * numbers){
+struct heap * cria_heap(int capacity){
     struct heap * newHeap = (struct heap*)malloc(sizeof(struct heap));
 
     if(newHeap == NULL){
@@ -46,86 +70,67 @@ struct heap * createHeap(int capacity, int * numbers){
         return NULL;
     }
 
-    newHeap->array = (int*)malloc(capacity * sizeof(int));
+    newHeap->size = 0;
     newHeap->capacity = capacity;
+    newHeap->array = (struct evento *)malloc(capacity * sizeof(struct evento));
 
     if(newHeap->array == NULL){
         puts("Erro de alocacao de memoria!");
         return NULL;
     }
 
-    for(int i = 0; i < capacity; i++) newHeap->array[i] = numbers[i];
-
-    newHeap->size = capacity;
-
-    for(int i = (newHeap->size - 2) / 2; i >= 0; i--) heapify(newHeap, i);
-
     return newHeap;
 }
 
-void organizeHeap(struct heap * heap, int index){
+void organiza_heap(struct heap * heap, int index){
     int parent = (index - 1) / 2;
 
-    if(heap->array[parent] > heap->array[index]){
-        int aux = heap->array[parent];
+    if(heap->array[parent].tempo_evento > heap->array[index].tempo_evento){
+        struct evento aux = heap->array[parent];
         heap->array[parent] = heap->array[index];
         heap->array[index] = aux;
 
-        organizeHeap(heap, parent);
+        organiza_heap(heap, parent);
     }
 }
 
-void insertHeap(struct heap * heap, int data){
+void insere_heap(struct heap * heap, struct evento novo_evento){
     if(heap->size < heap->capacity){
-        heap->array[heap->size] = data;
-        organizeHeap(heap, heap->size);
+        heap->array[heap->size] = novo_evento;
+        organiza_heap(heap, heap->size);
         heap->size++;
     }
 }
 
-int extractHeap(struct heap * heap){
+struct evento extrai_heap(struct heap * heap){
     if(heap->size == 0){
         puts("A heap esta vazia!");
-        return -1;
+        struct evento evento_vazio;
+        return evento_vazio;
     }
 
-    int deleteItem = heap->array[0];
+    struct evento evento_extraido = heap->array[0];
     heap->array[0] = heap->array[heap->size - 1];
     heap->size--;
 
     heapify(heap, 0);
-    return deleteItem;
+    return evento_extraido;
 }
 
 void printHeap(struct heap * heap){
     for(int i = 0; i < heap->size; i++)
-        printf("%d, ", heap->array[i]);
-    putchar('\n');
+        printf("[%c]: %lF,  %lF\n", heap->array[i].tipo_evento, heap->array[i].tempo_evento, heap->array[i].tempo_limite);
 }
 
-/* ... */
+// Entrada
 
-typedef struct { // Parâmetros de entrada
+typedef struct {
     double media_chegada;
     double media_servico;
     double tempo_simulacao;
 } parametros;
 
-typedef struct { // Valores de análise
-    unsigned long int no_eventos;
-    double tempo_anterior;
-    double soma_areas;
-} little;
-
-double min(double a, double b){ return (a < b) ? a : b; } // Retorna o menor valor
-
-void inicia_little(little * l){ // Iniicializa os valores de Little
-    l->no_eventos = 0;
-    l->tempo_anterior = 0.0;
-    l->soma_areas = 0.0;
-}
-
-void le_parametros(parametros * params){ // Realiza a leitura dos parâmetros de entrada
+void le_parametros(parametros * params){
     printf("Informe o tempo medio entre clientes (s): ");
     scanf("%lF", &params->media_chegada);
     params->media_chegada = 1.0/params->media_chegada;
@@ -140,33 +145,66 @@ void le_parametros(parametros * params){ // Realiza a leitura dos parâmetros de
     scanf("%lF", &params->tempo_simulacao);
 }
 
+// Analise
+
+typedef struct {
+    unsigned long int no_eventos;
+    double tempo_anterior;
+    double soma_areas;
+} little;
+
+void inicia_little(little * l){
+    l->no_eventos = 0;
+    l->tempo_anterior = 0.0;
+    l->soma_areas = 0.0;
+}
+
+// Simulador
+
 double uniforme() {
 	double u = rand() / ((double) RAND_MAX + 1); //limitando entre (0,1]
 
 	return (1.0 - u);
 }
 
+void inicializa_arvore(struct heap * arvore){
+    cria_heap(arvore);
+    // Primeira Conexão
+    // Primeira Coleta
+}
+
 int main(){
+    // RNG
+
     int semente = time(NULL);
     srand(semente);
 
-    //le valores parametrizados
+    // Input
+
     parametros params;
     le_parametros(&params);
 
-    //variaveis de controle da simulacao
+
+    // Eventos
+
+    struct heap * arvore_de_eventos;
+    inicializa_arvore(arvore_de_eventos);
+
+    // Controle de Simulação
+    
     double tempo_decorrido = 0.0;
-    double tempo_chegada = (-1.0/params.media_chegada) * log(uniforme());
-    double tempo_saida = DBL_MAX;
-    double tempo_analise = DBL_MAX;
-    // tempo_analise = DBL_MAX;
+    // [RECALCULAR] double tempo_chegada = (-1.0/params.media_chegada) * log(uniforme());
+    // [REFATORAR] double tempo_saida = DBL_MAX;
+    // [REFATORAR] double tempo_analise = DBL_MAX;
     unsigned long int fila = 0;
     unsigned long int max_fila = 0;
 
-    //variaveis de medidas de interesse
+    // Medidas de Interesse
+
     double soma_ocupacao = 0.0;
 
     // Little
+
     little e_n;
     little e_w_chegada;
     little e_w_saida;
@@ -174,131 +212,158 @@ int main(){
     inicia_little(&e_w_chegada);
     inicia_little(&e_w_saida);
 
-    /*
-        árvore entrega menor valor da raiz
-        7000+ conexões
-        chave = tempo da conexão ativa
+   // Novas Variáveis
+
+   struct evento evento_atual;
+
+    //min_heap --> tempo_pacote_conexoes_ativas
+    //eventos: nova_conexao, conexao_ativa_pacote(heap), tempo_servico, coleta_dados
+    // NOVA CONEXÃO: entra um novo cliente na banda
+    // CONEXÃO ATIVA: tempo em que outro pacote chega e entra na fila
+    // TEMPO SERVIÇO: quando o roteador ficará disponível novamente
+    // COLETA DADOS: coleta das informações de little
+    //min(min(min(nova_coxeao, heap.conexao_ativa_pacote),tempo_servico),coleta_dados)
     
-    */
-
     while(tempo_decorrido < params.tempo_simulacao){
-        //min_heap --> tempo_pacote_conexoes_ativas
-        //eventos: nova_conexao, conexao_ativa_pacote(heap), tempo_servico, coleta_dados
-        // NOVA CONEXÃO: entra um novo cliente na banda
-        // CONEXÃO ATIVA: tempo em que outro pacote chega e entra na fila
-        // TEMPO SERVIÇO: quando o roteador ficará disponível novamente
-        // COLETA DADOS: coleta das informações de little
-        //min(min(min(nova_coxeao, heap.conexao_ativa_pacote),tempo_servico),coleta_dados)
-
-        tempo_decorrido = min(tempo_chegada, min(tempo_saida, tempo_analise));
+       
+        evento_atual = extrai_heap(arvore_de_eventos);
+        tempo_decorrido = evento_atual.tempo_evento;
         //printf("%lF\n", tempo_decorrido);
 
-        if(tempo_decorrido == tempo_analise){
-            // analise
-            e_n.soma_areas += e_n.no_eventos * (tempo_decorrido - e_n.tempo_anterior);
-            e_n.tempo_anterior = tempo_decorrido;
-
-            e_w_chegada.soma_areas += e_w_chegada.no_eventos * (tempo_decorrido - e_w_chegada.tempo_anterior);
-            e_w_chegada.tempo_anterior = tempo_decorrido;
+        switch(evento_atual.tipo_evento){
+            case 'n': // Nova Conexão
+                // Insere nova conexão na heap
+                break;
             
-            e_w_saida.soma_areas += e_w_saida.no_eventos * (tempo_decorrido - e_w_saida.tempo_anterior);
-            e_w_saida.tempo_anterior = tempo_decorrido;
-
-            double e_n_calculo = e_n.soma_areas / tempo_decorrido;
-            double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
-            double lambda = e_w_chegada.no_eventos / tempo_decorrido;
-
-            // printf("%.0lF, %.20lF\n", tempo_analise, e_n_calculo - lambda * e_w_calculo);
-            tempo_analise += 10.0;
-        } else if(tempo_decorrido == tempo_chegada){
-            //chegada
-            //a cabeca da fila eh quem esta em atendimento
-            if(!fila){
-                double tempo_servico =
-                    (-1.0/params.media_servico)
-                    * log(uniforme());
-                
-                tempo_saida = tempo_decorrido
-                    + tempo_servico;
-
-                soma_ocupacao += tempo_servico;
-            }
-            fila++;
-            max_fila = fila > max_fila?
-                fila:max_fila;
+            case 's': // Tempo de Serviço
+                // Reduz a fila (caso exista)
+                // Insere o próximo momento de disponibilidade na heap
+                break;
             
-            tempo_chegada = tempo_decorrido + 
-            (-1.0/params.media_chegada) * log(uniforme());
+            case 'p': // Tempo de Pacote
+                // Aumenta a fila
+                // Insere o próximo pacote da conexão na heap (caso a conexão persista)
+                break;
 
-            //calculo little -- E[N]
-            e_n.soma_areas += 
-                (tempo_decorrido - e_n.tempo_anterior)
-                * e_n.no_eventos;
-            e_n.no_eventos++;
-            e_n.tempo_anterior = tempo_decorrido;
-            
-            //calculo little -- E[W] - chegada
-            e_w_chegada.soma_areas +=
-                (tempo_decorrido - e_w_chegada.tempo_anterior)
-                * e_w_chegada.no_eventos;
-            e_w_chegada.no_eventos++;
-            e_w_chegada.tempo_anterior = tempo_decorrido;
-        } else if(tempo_decorrido == tempo_saida){
-            //saida
-            fila--;
-            if(fila){
-                double tempo_servico =
-                    (-1.0/params.media_servico)
-                    * log(uniforme());
-                
-                tempo_saida = tempo_decorrido
-                    + tempo_servico;
+            case 'c': // Tempo de Coleta
+                // Completa os calculos de little
+                // Imprime os resultados
+                // Insere o novo valor de calculo na heap
+                break;
 
-                soma_ocupacao += tempo_servico;
-            }else{
-                tempo_saida = DBL_MAX;
-            }
-
-            //calculo little -- E[N]
-            e_n.soma_areas += 
-                (tempo_decorrido - e_n.tempo_anterior)
-                * e_n.no_eventos;
-            e_n.no_eventos--;
-            e_n.tempo_anterior = tempo_decorrido;
-
-            //calculo little -- E[W] - saida
-            e_w_saida.soma_areas +=
-                (tempo_decorrido - e_w_saida.tempo_anterior)
-                * e_w_saida.no_eventos;
-            e_w_saida.no_eventos++;
-            e_w_saida.tempo_anterior = tempo_decorrido;
-        } else{
-            puts("Evento invalido!\n");
-            return(1);
+            default:
+                puts("Evento invalido!");
+                return 1;
         }
+
+
+
+        // if(tempo_decorrido == tempo_analise){
+        //     // analise
+        //     e_n.soma_areas += e_n.no_eventos * (tempo_decorrido - e_n.tempo_anterior);
+        //     e_n.tempo_anterior = tempo_decorrido;
+
+        //     e_w_chegada.soma_areas += e_w_chegada.no_eventos * (tempo_decorrido - e_w_chegada.tempo_anterior);
+        //     e_w_chegada.tempo_anterior = tempo_decorrido;
+            
+        //     e_w_saida.soma_areas += e_w_saida.no_eventos * (tempo_decorrido - e_w_saida.tempo_anterior);
+        //     e_w_saida.tempo_anterior = tempo_decorrido;
+
+        //     double e_n_calculo = e_n.soma_areas / tempo_decorrido;
+        //     double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
+        //     double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+
+        //     // printf("%.0lF, %.20lF\n", tempo_analise, e_n_calculo - lambda * e_w_calculo);
+        //     tempo_analise += 10.0;
+        // } else if(tempo_decorrido == tempo_chegada){
+        //     //chegada
+        //     //a cabeca da fila eh quem esta em atendimento
+        //     if(!fila){
+        //         double tempo_servico =
+        //             (-1.0/params.media_servico)
+        //             * log(uniforme());
+                
+        //         tempo_saida = tempo_decorrido
+        //             + tempo_servico;
+
+        //         soma_ocupacao += tempo_servico;
+        //     }
+        //     fila++;
+        //     max_fila = fila > max_fila?
+        //         fila:max_fila;
+            
+        //     tempo_chegada = tempo_decorrido + 
+        //     (-1.0/params.media_chegada) * log(uniforme());
+
+        //     //calculo little -- E[N]
+        //     e_n.soma_areas += 
+        //         (tempo_decorrido - e_n.tempo_anterior)
+        //         * e_n.no_eventos;
+        //     e_n.no_eventos++;
+        //     e_n.tempo_anterior = tempo_decorrido;
+            
+        //     //calculo little -- E[W] - chegada
+        //     e_w_chegada.soma_areas +=
+        //         (tempo_decorrido - e_w_chegada.tempo_anterior)
+        //         * e_w_chegada.no_eventos;
+        //     e_w_chegada.no_eventos++;
+        //     e_w_chegada.tempo_anterior = tempo_decorrido;
+        // } else if(tempo_decorrido == tempo_saida){
+        //     //saida
+        //     fila--;
+        //     if(fila){
+        //         double tempo_servico =
+        //             (-1.0/params.media_servico)
+        //             * log(uniforme());
+                
+        //         tempo_saida = tempo_decorrido
+        //             + tempo_servico;
+
+        //         soma_ocupacao += tempo_servico;
+        //     }else{
+        //         tempo_saida = DBL_MAX;
+        //     }
+
+        //     //calculo little -- E[N]
+        //     e_n.soma_areas += 
+        //         (tempo_decorrido - e_n.tempo_anterior)
+        //         * e_n.no_eventos;
+        //     e_n.no_eventos--;
+        //     e_n.tempo_anterior = tempo_decorrido;
+
+        //     //calculo little -- E[W] - saida
+        //     e_w_saida.soma_areas +=
+        //         (tempo_decorrido - e_w_saida.tempo_anterior)
+        //         * e_w_saida.no_eventos;
+        //     e_w_saida.no_eventos++;
+        //     e_w_saida.tempo_anterior = tempo_decorrido;
+        // } else{
+        //     puts("Evento invalido!\n");
+        //     return(1);
+        // }
     }
-    e_w_chegada.soma_areas +=
-        (tempo_decorrido - e_w_chegada.tempo_anterior)
-        * e_w_chegada.no_eventos;
+    // e_w_chegada.soma_areas +=
+    //     (tempo_decorrido - e_w_chegada.tempo_anterior)
+    //     * e_w_chegada.no_eventos;
 
-    e_w_saida.soma_areas +=
-        (tempo_decorrido - e_w_saida.tempo_anterior)
-        * e_w_saida.no_eventos;
+    // e_w_saida.soma_areas +=
+    //     (tempo_decorrido - e_w_saida.tempo_anterior)
+    //     * e_w_saida.no_eventos;
 
 
 
-    double e_n_calculo = e_n.soma_areas / tempo_decorrido;
-    double e_w_calculo = (e_w_chegada.soma_areas
-        - e_w_saida.soma_areas)
-        / e_w_chegada.no_eventos;
-    double lambda = e_w_chegada.no_eventos / tempo_decorrido;
+    // double e_n_calculo = e_n.soma_areas / tempo_decorrido;
+    // double e_w_calculo = (e_w_chegada.soma_areas
+    //     - e_w_saida.soma_areas)
+    //     / e_w_chegada.no_eventos;
+    // double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
-    printf("ocupacao: %lF\n", (soma_ocupacao/tempo_decorrido));
-    // printf("tamanho maximo da fila: %ld\n", max_fila);
+    // printf("ocupacao: %lF\n", (soma_ocupacao/tempo_decorrido));
+    // // printf("tamanho maximo da fila: %ld\n", max_fila);
 
-    printf("E[N]: %lF\n", e_n_calculo);    
-    printf("E[W]: %lF\n", e_w_calculo);
-    printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
+    // printf("E[N]: %lF\n", e_n_calculo);    
+    // printf("E[W]: %lF\n", e_w_calculo);
+    // printf("Erro de Little: %.20lF\n", e_n_calculo - lambda * e_w_calculo);
 
     return 0;
 }
