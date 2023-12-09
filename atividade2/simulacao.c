@@ -1,19 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <float.h>
 #include <time.h>
-
-// Parametros Fixos
-
-#define MAXIMO_ARVORE 100 // Tamanho máximo suportado pela Árvore de Eventos
-
-#define TAMANHO_PACOTE 188.0 * 8.0 // 188 Bytes
-#define TAMANHO_BANDA 1000000000.0 // 1 Gigabit / segundo
-#define TEMPO_SERVICO TAMANHO_PACOTE / TAMANHO_BANDA // Tempo de processamento de cada pacote
-
-#define TEMPO_INJECAO 20.0 // 20 segundos
-#define TEMPO_CONEXAO 120.0 // 2 minutos
 
 // Evento
 
@@ -179,11 +169,20 @@ int main(){
     parametros params;
     le_parametros(&params);
 
+    // Parametros fixos
+    double tamanho_pacote = 188.0 * 8.0; // 188 Bytes
+    double largura_de_banda = 1000000000.0; // 1 Gigabit / segundo
+    double tempo_servico = tamanho_pacote / largura_de_banda; // Tempo de processamento de cada pacote
+    
+    double tempo_injecao = 0.020; // 20 milisegundos
+    double media_conexao = 120.0; // 2 minutos
+
     // Arvore de Eventos
 
     // Árvore Heap de Eventos
+    int maximo_arvore = 1000000; // Tamanho máximo suportado pela Árvore de Eventos
     struct evento evento_atual;
-    struct heap * arvore_de_eventos = cria_heap(MAXIMO_ARVORE);
+    struct heap * arvore_de_eventos = cria_heap(maximo_arvore);
 
     // Primeira Coleta
     evento_atual = cria_evento('c', 0.0, 0.0);
@@ -200,6 +199,8 @@ int main(){
 
     unsigned long int fila = 0;
     unsigned long int max_fila = 0;
+
+    double tempo_conexao;
     
     // Medidas de Interesse
 
@@ -226,12 +227,12 @@ int main(){
         switch(evento_atual.tipo_evento){
             case 'n': // Nova Conexão
                 // Insere a nova conexão na heap
-                double tempo_conexao = (-1.0 / TEMPO_CONEXAO) * log(uniforme());
+                tempo_conexao = (-1.0 / media_conexao) * log(uniforme());
                 evento_atual = cria_evento('p', tempo_decorrido, tempo_decorrido + tempo_conexao);
                 insere_heap(arvore_de_eventos, evento_atual);
 
                 // Define o momento da próxima conexão
-                double tempo_chegada = (-1.0 / params.media_chegada) * log(uniforme());
+                tempo_chegada = (-1.0 / params.media_chegada) * log(uniforme());
                 evento_atual = cria_evento('n', tempo_decorrido + tempo_chegada, 0.0);
                 insere_heap(arvore_de_eventos, evento_atual);
 
@@ -243,7 +244,7 @@ int main(){
 
                 if(fila){
                     // Processa o próximo pacote (fila não vazia)
-                    evento_atual = cria_evento('s', tempo_decorrido + TEMPO_SERVICO, 0.0);
+                    evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
                 }
 
@@ -266,14 +267,14 @@ int main(){
                 
                 if(!fila){
                     // Define o tempo de serviço (fila vazia)
-                    evento_atual = cria_evento('s', tempo_decorrido + TEMPO_SERVICO, 0.0);
+                    evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
                 }
 
-                if(tempo_decorrido + TEMPO_INJECAO <= evento_atual.tempo_limite){
+                if(tempo_decorrido + tempo_injecao <= evento_atual.tempo_limite){
                     // Insere o próximo pacote da conexão na heap (caso a conexão persista)
-                    double tempo_limite = evento_atual.tempo_limite;
-                    evento_atual = cria_evento('p', tempo_decorrido + TEMPO_INJECAO, tempo_limite);
+                    tempo_conexao = evento_atual.tempo_limite;
+                    evento_atual = cria_evento('p', tempo_decorrido + tempo_injecao, tempo_conexao);
                     insere_heap(arvore_de_eventos, evento_atual);
                 }
 
@@ -281,7 +282,7 @@ int main(){
                 e_n.soma_areas += (tempo_decorrido - e_n.tempo_anterior) * e_n.no_eventos;
                 e_n.no_eventos++;
                 e_n.tempo_anterior = tempo_decorrido;
-                
+
                 // Calculos de Little (E[W] Chegada)
                 e_w_chegada.soma_areas += (tempo_decorrido - e_w_chegada.tempo_anterior) * e_w_chegada.no_eventos;
                 e_w_chegada.no_eventos++;
@@ -328,7 +329,9 @@ int main(){
     double e_w_calculo = (e_w_chegada.soma_areas - e_w_saida.soma_areas) / e_w_chegada.no_eventos;
     double lambda = e_w_chegada.no_eventos / tempo_decorrido;
 
-    printf("Ocupacao: %lF\n", (soma_ocupacao/tempo_decorrido));
+    printf("Tempo de Serviço: %lF\n", tempo_servico);
+
+    printf("Taxa de Ocupacao: %lF\n", (soma_ocupacao/tempo_decorrido));
     printf("Tamanho maximo da fila: %ld\n", max_fila);
 
     printf("E[N]: %lF\n", e_n_calculo);    
