@@ -253,6 +253,8 @@ int main(){
                     // Processa o próximo pacote (fila não vazia)
                     evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
+                    // Registra o tempo de serviço
+                    soma_ocupacao += tempo_servico;
                 }
 
                 // Calculos de Little (E[N])
@@ -275,6 +277,8 @@ int main(){
                     // Define o tempo de serviço (fila vazia)
                     evento_atual = cria_evento('s', tempo_decorrido + tempo_servico, 0.0);
                     insere_heap(arvore_de_eventos, evento_atual);
+                    // Registra o tempo de serviço
+                    soma_ocupacao += tempo_servico;
                 }
 
                 // Aumenta a fila
