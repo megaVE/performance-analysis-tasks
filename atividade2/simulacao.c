@@ -225,7 +225,7 @@ int main(){
     while(1){
         evento_atual = extrai_heap(arvore_de_eventos);
         tempo_decorrido = evento_atual.tempo_evento;
-        printf("[%c] %lF\n", evento_atual.tipo_evento, tempo_decorrido);
+        // printf("[%c] %lF\n", evento_atual.tipo_evento, tempo_decorrido);
 
         if(tempo_decorrido >= params.tempo_simulacao) break;
 
@@ -233,13 +233,13 @@ int main(){
             case 'n': // Nova Conexão
                 // Insere a nova conexão na heap
                 tempo_conexao = (-1.0 / media_conexao) * log(uniforme());
-                printf("Inicio: %lF | Fim: %lF\n", tempo_decorrido, tempo_decorrido + tempo_conexao);
+                // printf("Inicio: %lF | Fim: %lF\n", tempo_decorrido, tempo_decorrido + tempo_conexao);
                 evento_atual = cria_evento('p', tempo_decorrido, tempo_decorrido + tempo_conexao);
                 insere_heap(arvore_de_eventos, evento_atual);
 
                 // Define o momento da próxima conexão
                 tempo_chegada = (-1.0 / params.media_chegada) * log(uniforme());
-                printf("Intervalo: %lF | Proxima Conexao: %lF\n", tempo_chegada, tempo_decorrido + tempo_chegada);
+                // printf("Intervalo: %lF | Proxima Conexao: %lF\n", tempo_chegada, tempo_decorrido + tempo_chegada);
                 evento_atual = cria_evento('n', tempo_decorrido + tempo_chegada, 0.0);
                 insere_heap(arvore_de_eventos, evento_atual);
 
@@ -319,7 +319,7 @@ int main(){
                 double lambda = e_w_chegada.no_eventos / tempo_decorrido;
                 
                 // Imprime os resultados
-                // printf("%.0lF, %.20lF\n", tempo_decorrido, e_n_calculo - lambda * e_w_calculo);
+                printf("%.0lF, %.20lF\n", tempo_decorrido, e_n_calculo - lambda * e_w_calculo);
 
                 // Insere o novo valor de calculo na heap
                 evento_atual = cria_evento('c', tempo_decorrido + 10.0, 0.0);
